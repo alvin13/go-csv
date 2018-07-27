@@ -114,12 +114,9 @@ func (r *Reader) Read() ([]string, error) {
 			return record, err
 		}
 
-		if nextIsLineTerminator, _ := r.nextIsLineTerminator(); nextIsLineTerminator {
-			// Skipping so that next read call is good to go.
-			err = r.skipLineTerminator()
-			// Error is not expected since it should be in the Unreader buffer, but
-			// might as well return it just in case.
-			return record, err
+		skip, e := r.checkAndSkipLineTerminator()
+		if skip {
+			return record, e
 		}
 		nextIsDelimiter, err := r.nextIsDelimiter()
 		if !nextIsDelimiter {
@@ -127,11 +124,28 @@ func (r *Reader) Read() ([]string, error) {
 			return record, err
 		} else {
 			r.skipDelimiter()
+			//needed here to handle trailing delimiter
+			skip, e := r.checkAndSkipLineTerminator()
+			if skip {
+				return record, e
+			}
+
 		}
 	}
 
 	// Required by Go 1.0 to compile. Unreachable code.
 	return record, nil
+}
+
+func (r *Reader) checkAndSkipLineTerminator() (bool, error) {
+	if nextIsLineTerminator, _ := r.nextIsLineTerminator(); nextIsLineTerminator {
+		// Skipping so that next read call is good to go.
+		err := r.skipLineTerminator()
+		// Error is not expected since it should be in the Unreader buffer, but
+		// might as well return it just in case.
+		return true, err
+	}
+	return false, nil
 }
 
 func (r *Reader) readField() (string, error) {
